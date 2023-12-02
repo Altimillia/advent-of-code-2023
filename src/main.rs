@@ -51,6 +51,7 @@ fn print_all_days(){
 fn print_specific_day(day: i32) {
     match day {
         1 => print_style_result!(day_01, load_file("day01_input.txt"), "Day 1"),
+        2 => print_style_result!(day_02, load_file("day02_input.txt"), "Day 2"),
         _ => {}
     }
 }
