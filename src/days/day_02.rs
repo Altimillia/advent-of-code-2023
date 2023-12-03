@@ -78,13 +78,13 @@ impl GameSet {
         let mut red_count = 0;
         let mut blue_count = 0;
         for cube_count in cube_counts {
-            if(cube_count.contains("green")){
+            if cube_count.contains("green") {
                 green_count = parse_numbers(cube_count.trim()).unwrap().1;
             }
-            if(cube_count.contains("blue")){
+            if cube_count.contains("blue") {
                 blue_count = parse_numbers(cube_count.trim()).unwrap().1;
             }
-            if(cube_count.contains("red")){
+            if cube_count.contains("red") {
                 red_count = parse_numbers(cube_count.trim()).unwrap().1;
             }
         }

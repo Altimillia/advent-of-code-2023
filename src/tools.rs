@@ -12,3 +12,15 @@ pub fn parse_numbers(input: &str) -> IResult<&str, i32> {
 
     Ok((i, number))
 }
+
+pub fn usize_to_i32(num: usize) -> Result<i32, String> {
+    // Check if the `usize` value can fit within the range of `i32`
+    if num > i32::MAX as usize {
+        return Err(format!("Invalid input. The value {} is too large to fit within the range of i32.", num));
+    }
+
+    // Convert the `usize` value to `i32`
+    let converted_num = num as i32;
+
+    Ok(converted_num)
+}
