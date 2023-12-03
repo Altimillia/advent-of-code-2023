@@ -1,9 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Display;
-use crate::tools;
 use itertools;
 use itertools::Itertools;
-use crate::tools::{is_digit, parse_numbers};
+use crate::tools::parse_numbers;
 
 
 pub fn part_one(input: String) -> impl Display {
@@ -74,23 +73,23 @@ impl CalibrationInstruction {
         for i in 0..10 {
             let i_str = i.to_string();
             let indices = instruction_line.match_indices(&i_str);
-            indices.for_each(|(index, value)| {
+            indices.for_each(|(index, _)| {
                 let _ = number_positions.insert(index, i);
             });
         }
 
         for kvp in string_to_number {
             let indices = instruction_line.match_indices(&kvp.0);
-            indices.for_each(|(index, value)| {
+            indices.for_each(|(index, _)| {
                 let _ = number_positions.insert(index, kvp.1);
             });
         }
 
         let sorted: Vec<&i32> = number_positions.iter()
-            .sorted_by(|(aKey, aValue), (bKey, bValue)| Ord::cmp(aKey, bKey))
-            .map(|(key, value)| value).collect();
+            .sorted_by(|(a_key, _), (b_key, _)| Ord::cmp(a_key, b_key))
+            .map(|(_, value)| value).collect();
 
-        let mut total_value_string;
+        let total_value_string;
         let first_value = sorted.first().unwrap().to_string();
         let last_value = sorted.last().unwrap().to_string();
 

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use nom::{IResult, combinator::{map_res, recognize, opt}, sequence::preceded, character::complete::digit1, bytes::complete::tag};
-
+#[allow(dead_code)]
 pub fn is_digit(c: &char) -> bool {
     c.is_digit(10)
 }

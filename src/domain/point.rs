@@ -1,6 +1,5 @@
 use std::fmt;
 use std::ops::{Add, Sub};
-use crate::tools;
 use crate::tools::usize_to_i32;
 
 pub const NORTH: Point = Point { x: 0, y: 1};
@@ -18,6 +17,7 @@ pub struct Point {
     pub y: i32
 }
 impl Point {
+    #[allow(dead_code)]
     pub fn new(x: i32, y: i32) -> Self {
         return Point { x, y }
     }

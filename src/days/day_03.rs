@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
-use nom::{FindSubstring};
 use crate::domain::point::Point;
 use crate::tools::parse_numbers;
 
@@ -109,7 +108,7 @@ impl Schematic {
         let part_map = &self.build_part_map();
         let mut gears: Vec<Gear> = Vec::new();
         for symbol in &self.symbols {
-            if(symbol.indicator != '*'){
+            if symbol.indicator != '*' {
                 continue;
             }
             let mut gear_parts: HashSet<i32> = HashSet::new();
@@ -120,7 +119,7 @@ impl Schematic {
                 }
             }
 
-            if(gear_parts.iter().count() == 2)
+            if gear_parts.iter().count() == 2
             {
                 gears.push(Gear { parts: gear_parts.iter().map(|number| *number).collect() });
             }
@@ -152,7 +151,7 @@ impl Part {
         let mut point_hash: HashSet<Point> = HashSet::new();
         for position in self.positions.iter() {
             for neighbor in position.get_neighbors() {
-                if (!self.positions.contains(&neighbor)) {
+                if !self.positions.contains(&neighbor) {
                     point_hash.insert(neighbor);
                 }
             }
@@ -165,7 +164,7 @@ impl Part {
         let possible_positions = self.get_possible_symbol_positions();
         let symbol_positions:Vec<Point> = symbols.iter().map(|symbol| symbol.position).collect();
         for possible_position in possible_positions {
-            if(symbol_positions.contains(&possible_position)){
+            if symbol_positions.contains(&possible_position) {
                 return true;
             }
         }

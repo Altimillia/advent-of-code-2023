@@ -41,7 +41,7 @@ impl Game {
 
     pub fn is_possible(&self, blue_count: i32, red_count: i32, green_count: i32) -> bool {
         for set in &self.sets {
-            if(set.blue > blue_count || set.green > green_count || set.red > red_count){
+            if set.blue > blue_count || set.green > green_count || set.red > red_count {
                 return false;
             }
         }
