@@ -24,3 +24,15 @@ pub fn usize_to_i32(num: usize) -> Result<i32, String> {
 
     Ok(converted_num)
 }
+
+pub fn usize_to_u32(num: usize) -> Result<u32, String> {
+    // Check if the `usize` value can fit within the range of `u32`
+    if num > u32::MAX as usize {
+        return Err(format!("Invalid input. The value {} is too large to fit within the range of u32.", num));
+    }
+
+    // Convert the `usize` value to `i32`
+    let converted_num = num as u32;
+
+    Ok(converted_num)
+}
