@@ -35,7 +35,7 @@ fn map_seeds_to_location(input: String) -> u64 {
 
 
 pub fn part_two(input: String) -> impl Display {
-    map_seeds_to_location_with_seed_range(input)
+    map_seeds_to_location_with_seed_range_v2_final(input)
 }
 
 
@@ -81,14 +81,14 @@ fn map_seeds_to_location_with_seed_range_v2_final(input: String) -> u64 {
 
         let final_mapping = end_range.get_final_mapping_ranges();
         final_mapping.iter().for_each(|kvp| {
-            println!("{} - {}", kvp.1, kvp.0 + seed_start);
+            println!("{} - {}", kvp.0, kvp.1 + seed_start);
             lowest = std::cmp::min(lowest, *kvp.0);
         });
         println!("{}", end_range.intervals.iter().count());
     });
     println!("{}", lowest);
 
-    0
+    lowest
 }
 
 #[derive(Debug, PartialEq)]
@@ -286,7 +286,8 @@ impl Seeds {
 
 #[cfg(test)]
 mod tests {
-    use super::{map_seeds_to_location, map_seeds_to_location_with_seed_range};
+    use crate::days::day_05::EntityType::{Seed, Soil};
+    use super::{Map, map_seeds_to_location, map_seeds_to_location_with_seed_range, map_seeds_to_location_with_seed_range_v2_final, MapEntry, Range};
     #[test]
     fn mapping_can_get_locations() {
         let input = r#"seeds: 79 14 55 13
@@ -367,6 +368,68 @@ humidity-to-location map:
         let result = map_seeds_to_location_with_seed_range(input);
 
         assert_eq!(result, 46);
+    }
+
+    #[test]
+    fn range_mapping_can_be_parsed() {
+        let input = r#"seeds: 79 14 55 13
+
+seed-to-soil map:
+50 98 2
+52 50 48
+
+soil-to-fertilizer map:
+0 15 37
+37 52 2
+39 0 15
+
+fertilizer-to-water map:
+49 53 8
+0 11 42
+42 0 7
+57 7 4
+
+water-to-light map:
+88 18 7
+18 25 70
+
+light-to-temperature map:
+45 77 23
+81 45 19
+68 64 13
+
+temperature-to-humidity map:
+0 69 1
+1 0 69
+
+humidity-to-location map:
+60 56 37
+56 93 4"#.to_string();
+
+        let result = map_seeds_to_location_with_seed_range_v2_final(input);
+
+        assert_eq!(result, 46);
+    }
+
+    #[test]
+    fn range_can_be_cut_to_intervals() {
+        let map_entry = MapEntry { range: 48, source_start: 50, destination_start: 52 };
+        let cut_range = map_entry.cut_range(Range::new(79, 25));
+
+        assert_eq!(cut_range.intervals.iter().count(), 2);
+        assert_eq!(cut_range.intervals[1].length, 6);
+        assert_eq!(cut_range.intervals[1].start, 98);
+    }
+
+    #[test]
+    fn range_mapping_can_be_applied_to_intervals() {
+        let map_entry = MapEntry { range: 48, source_start: 50, destination_start: 52 };
+        let map = Map { map_entries: vec![map_entry], destination_entity: Soil, source_entity: Seed };
+        let cut_range = map.apply_range_mapping(Range::new(79, 25));
+
+        assert_eq!(cut_range.intervals.iter().count(), 2);
+        assert_eq!(cut_range.intervals[1].length, 6);
+        assert_eq!(cut_range.intervals[1].start, 100);
     }
 
 }
