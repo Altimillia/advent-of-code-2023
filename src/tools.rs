@@ -13,6 +13,15 @@ pub fn parse_numbers(input: &str) -> IResult<&str, i32> {
     Ok((i, number))
 }
 
+pub fn parse_numbers_u64(input: &str) -> IResult<&str, u64> {
+    let (i, number) = map_res(recognize(preceded(opt(tag("-")), digit1)), |s| {
+        u64::from_str(s)
+    })(input)?;
+
+    Ok((i, number))
+}
+
+
 pub fn usize_to_i32(num: usize) -> Result<i32, String> {
     // Check if the `usize` value can fit within the range of `i32`
     if num > i32::MAX as usize {
