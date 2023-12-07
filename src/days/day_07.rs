@@ -1,13 +1,15 @@
 use std::cmp::Ordering;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter, write};
 use std::ops::Index;
 use itertools::Itertools;
 use crate::tools::{parse_numbers_u64, usize_to_u32, usize_to_u64};
 
 const CARDS: [char; 13] = ['A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J'];
+
 pub fn part_one(input: String) -> impl Display {
     let hands:Vec<Hand> = input.lines().map(|line| Hand::parse(line)).sorted().collect();
-    bidder(hands)
+    //bidder(hands)
+    0
 }
 
 pub fn part_two(input: String) -> impl Display {
@@ -19,8 +21,8 @@ fn bidder(hands:Vec<Hand>) -> u64 {
     let mut running_total:u64 = 0;
     for i in 0..hands.iter().count() {
         let hand = hands.get(i).unwrap();
-
         running_total += hand.score * usize_to_u64(i + 1).unwrap();
+        let str:String = hand.cards.iter().collect();
     }
 
     running_total
@@ -35,6 +37,20 @@ enum HandType {
     TwoPair = 2,
     OnePair = 1,
     HighCard = 0
+}
+
+impl Display for HandType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HandType::FiveOfAKind => write!(f, "Five of a kind"),
+            HandType::FourOfAKind => write!(f, "Four of a kind"),
+            HandType::FullHouse => write!(f, "Full House"),
+            HandType::ThreeOfAKind => write!(f, "Three of a kind"),
+            HandType::TwoPair => write!(f, "Two Pair"),
+            HandType::OnePair => write!(f, "One Pair"),
+            HandType::HighCard => write!(f, "High Card"),
+        }
+    }
 }
 
 struct Hand {
@@ -64,31 +80,47 @@ impl Hand {
 
     fn determine_hand_type_v2(hand: Vec<char>) -> HandType {
         let mut card_counter:Vec<usize> = Vec::new();
+        let mut jokers = hand.iter().filter(|c| *c == &'J').count();
         for card in CARDS {
             if card == 'J'
             {
                 continue;
             }
-
-            card_counter.push(hand.iter().filter(|x| *x == &card || *x == &'J').count());
+            card_counter.push(hand.iter().filter(|x| *x == &card).count());
         }
 
-        if(card_counter.contains(&(5usize))){
+        let mut sorted:Vec<&usize> = card_counter.iter().sorted_by(|a, b| b.cmp(a)).map(|a| a).collect();
+        let mut updated_card_counts:Vec<usize> = Vec::new();
+
+        for card_count in sorted {
+            if(jokers > 0){
+                updated_card_counts.push(card_count + jokers);
+                jokers = 0;
+            }
+            else {
+                updated_card_counts.push(*card_count);
+            }
+        }
+
+        if(updated_card_counts.contains(&(5usize))){
             return HandType::FiveOfAKind;
         }
-        if(card_counter.contains(&(4usize))){
+        if(updated_card_counts.contains(&(4usize))){
             return HandType::FourOfAKind;
         }
-        if(card_counter.contains(&(3usize)) && card_counter.contains(&(2usize))){
+        if updated_card_counts.iter().filter(|count| *count >= &(3usize)).count() == 2 {
             return HandType::FullHouse;
         }
-        if card_counter.contains(&(3usize)) {
+        if updated_card_counts.contains(&(3usize)) && updated_card_counts.contains(&(2usize)) {
+            return HandType::FullHouse;
+        }
+        if updated_card_counts.contains(&(3usize)) {
             return HandType::ThreeOfAKind;
         }
-        if card_counter.iter().filter(|x| *x == &2usize).count() == 2 {
+        if updated_card_counts.iter().filter(|x| *x == &2usize).count() == 2 {
             return HandType::TwoPair;
         }
-        if card_counter.contains(&2usize){
+        if updated_card_counts.contains(&2usize){
             return HandType::OnePair;
         }
 
@@ -147,6 +179,7 @@ impl Ord for Hand {
                 return CARDS.iter().position(|&c| c == other.cards[i]).unwrap().cmp(&CARDS.iter().position(|&c| c == self.cards[i]).unwrap())
             }
         }
+        println!("help");
         self.score.cmp(&other.score)
     }
 
@@ -240,5 +273,24 @@ QQQJA 483"#;
         assert_eq!(ordering.is_gt(), true);
     }
 
+    #[test]
+    fn all_joker_hand_is_processed() {
+        let hand_1 = Hand::parse_v2(r#"JJJJJ 287"#);
 
+        assert_eq!(hand_1.hand_type, HandType::FiveOfAKind);
+    }
+
+    #[test]
+    fn full_houses_are_parsed() {
+        let hand_1 = Hand::parse_v2(r#"JKKQQ 100"#);
+
+        assert_eq!(hand_1.hand_type, HandType::FullHouse);
+    }
+
+    #[test]
+    fn jokers_are_not_reused() {
+        let hand_1 = Hand::parse_v2(r#"JKKTQ 100"#);
+
+        assert_eq!(hand_1.hand_type, HandType::ThreeOfAKind);
+    }
 }
