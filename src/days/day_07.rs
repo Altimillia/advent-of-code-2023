@@ -4,6 +4,7 @@ use std::ops::Index;
 use itertools::Itertools;
 use crate::tools::{parse_numbers_u64, usize_to_u32, usize_to_u64};
 
+
 const CARDS: [char; 13] = ['A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J'];
 
 pub fn part_one(input: String) -> impl Display {

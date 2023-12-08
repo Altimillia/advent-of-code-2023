@@ -1,4 +1,4 @@
-
+#![allow(warnings)]
 use crate::days::*;
 use std::{env, fs};
 use std::fmt::Display;
@@ -58,6 +58,7 @@ fn print_specific_day(day: i32) {
         5 => print_style_result!(day_05, load_file("day05_input.txt"), "Day 5"),
         6 => print_style_result!(day_06, load_file("day06_input.txt"), "Day 6"),
         7 => print_style_result!(day_07, load_file("day07_input.txt"), "Day 7"),
+        8 => print_style_result!(day_08, load_file("day08_input.txt"), "Day 8"),
         _ => {}
     }
 }
