@@ -1,5 +1,8 @@
+use std::cmp::{min, Ordering};
 use std::fmt;
 use std::ops::{Add, Sub};
+use itertools::max;
+use num::integer::Roots;
 use crate::tools::usize_to_i32;
 
 pub const NORTH: Point = Point { x: 0, y: 1};
@@ -28,6 +31,20 @@ impl Point {
         let directions = [NORTH, EAST, WEST, SOUTH, NORTHEAST, NORTHWEST, SOUTHEAST, SOUTHWEST];
         return directions.iter().map(|dir| *dir + *self).collect();
     }
+
+    pub fn get_cardinal_neighbors(&self) -> Vec<Point> {
+        let directions = [NORTH, EAST, WEST, SOUTH];
+        return directions.iter().map(|dir| *dir + *self).collect();
+    }
+
+    pub fn normalize(&self) -> Point {
+        let mag = self.magnitude();
+        return Point { x: self.x / mag, y: self.y / mag }
+    }
+
+    pub fn magnitude(&self) -> i32 {
+        (self.x * self.x + self.y * self.y).sqrt()
+    }
 }
 
 impl Add for Point {
@@ -51,3 +68,4 @@ impl fmt::Display for Point {
         write!(f, "x: {}, y: {}", self.x, self.y)
     }
 }
+
