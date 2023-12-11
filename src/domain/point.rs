@@ -45,6 +45,10 @@ impl Point {
     pub fn magnitude(&self) -> i32 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
+
+    pub fn manhattan_distance(&self, other:Point) -> i32 {
+        (self.x - other.x).abs() + (self.y - other.y).abs()
+    }
 }
 
 impl Add for Point {
