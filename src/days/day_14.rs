@@ -5,28 +5,39 @@ use std::str::FromStr;
 use crate::domain::point::{NORTH, SOUTH, Point, WEST, EAST};
 
 pub fn part_one(input: String) -> impl Display {
-    let grid = Board::parse(input);
-    let updated = grid.tilt_until_stopped(NORTH);
-    updated.print();
-
-    updated.get_board_load()
+    let mut grid = Board::parse(input);
+    let update = grid.tilt(NORTH);
+    update.print();
+    update.get_board_load()
 }
 
 pub fn part_two(input: String) -> impl Display {
     let mut grid = Board::parse(input);
-    // Get a sample after a set of iterations
-    let updated = grid.spin_times(300);
+    let mut seen = vec![grid.grid.clone()];
 
-    for i in 0..1000000000 - 300 {
-        grid = updated.spin_cycle();
-        // println!("{}", i);
-        if grid.compare(&updated) {
-            println!("{} true", i);
+    loop {
+        grid = grid.spin_cycle();
+        if let Some(position) = seen.iter().position(|x| x == &grid.grid) {
+            let cycle_len = seen.len() - position;
+            let remaining = position + (1_000_000_000 - position) % cycle_len;
+
+            println!("{}", weight_grid(&seen[remaining]));
+            return weight_grid(&seen[remaining]);
         }
-    }
-    updated.print();
 
-    updated.get_board_load()
+        seen.push(grid.grid.clone());
+    }
+}
+
+fn weight_grid(grid: &HashMap<Point, Entity>) -> i32 {
+    let mut running_total = 0;
+    grid.iter().for_each(|(pos, entity)| {
+        if matches!(entity, Entity::Sphere) {
+            running_total += pos.y + 1;
+        }
+    });
+
+    running_total
 }
 
 
@@ -77,18 +88,6 @@ impl Board {
         Board { grid: map, total_size }
     }
 
-    fn compare(&self, other: &Board) -> bool {
-        for y in 0..self.total_size.y {
-            for x in 0..self.total_size.x {
-                if self.grid.get(&Point::new(x,y)).unwrap() != other.grid.get(&Point::new(x,y)).unwrap() {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
     fn print(&self) {
 
         for y in (0..self.total_size.y).rev() {
@@ -98,18 +97,16 @@ impl Board {
             println!("");
         }
     }
+
     
-    fn tilt(&self, direction: Point) -> (Self, bool) {
+    fn tilt(&self, direction: Point) -> Self {
         let mut updated_grid:HashMap<Point, Entity> = HashMap::new();
-        let mut movement_detected = false;
 
 
         let (y_direction, y_start, y_end) = if direction == SOUTH { (1, 0, self.total_size.y) } else { (-1, self.total_size.y - 1, -1)};
         let (x_direction, x_start, x_end) = if direction == WEST { (1, 0, self.total_size.x) } else { (-1, self.total_size.x - 1, -1)};
-        // //
+
         let mut y_index = y_start;
-        // // let (y_start, y_end) = if direction == SOUTH { ((0..self.total_size.y).start,(0..self.total_size.y).end) } else { ((0..self.total_size.y).end,(0..self.total_size.y).start) };
-        // //
         while y_index != y_end {
             let mut x_index = x_start;
             while x_index != x_end {
@@ -130,9 +127,6 @@ impl Board {
                         updated_grid.remove(&destination);
                         updated_grid.insert(destination, *current_entity);
                         updated_grid.insert(destination - direction, Entity::Empty);
-
-                        movement_detected = true;
-
                         destination = destination + direction;
                     }
                 }
@@ -146,18 +140,9 @@ impl Board {
             y_index += y_direction;
         }
 
-
-
-        (Board { grid: updated_grid, total_size: self.total_size }, movement_detected)
+        Board { grid: updated_grid, total_size: self.total_size }
     }
 
-
-    fn tilt_until_stopped(&self, direction: Point) -> Self {
-
-        let (mut tilting_board, _) = self.tilt(direction);
-
-        tilting_board
-    }
 
     fn get_board_load(&self) -> i32 {
         let mut running_total = 0;
@@ -174,22 +159,13 @@ impl Board {
     }
 
     fn spin_cycle(&self) -> Self {
-        let mut updated = self.tilt_until_stopped(NORTH)
-            .tilt_until_stopped(WEST)
-            .tilt_until_stopped(SOUTH)
-            .tilt_until_stopped(EAST);
+        let mut updated = self.tilt(NORTH)
+            .tilt(WEST)
+            .tilt(SOUTH)
+            .tilt(EAST);
 
 
         updated
-    }
-
-    fn spin_times(&self, amount:i32) -> Self {
-        let mut end_result = self.spin_cycle();
-        for i in 0..amount - 1 {
-            end_result = end_result.spin_cycle();
-        }
-
-        return end_result
     }
 }
 
@@ -237,42 +213,5 @@ O.#..O.#.#
         assert_eq!(spun.get_board_load(), 10);
     }
 
-    #[test]
-    fn board_can_spin_cycle_amount() {
-        let input = r#"O....#....
-O.OO#....#
-.....##...
-OO.#O....O
-.O.....O#.
-O.#..O.#.#
-..O..#O..O
-.......O..
-#....###..
-#OO..#...."#;
 
-        let board = Board::parse(input.to_string());
-        let spun = board.spin_times(3);
-
-        spun.print();
-        assert_eq!(spun.get_board_load(), 10);
-    }
-
-    #[test]
-    fn boards_can_be_equal() {
-        let input = r#"O....#....
-O.OO#....#
-.....##...
-OO.#O....O
-.O.....O#.
-O.#..O.#.#
-..O..#O..O
-.......O..
-#....###..
-#OO..#...."#;
-
-        let board = Board::parse(input.to_string()).spin_times(3);
-
-        let second_board = Board::parse(input.to_string()).spin_times(3);
-        assert_eq!(board.compare(&second_board), true);
-    }
 }
