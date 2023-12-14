@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
-use std::ops::Range;
 use std::str::FromStr;
-use itertools::Either;
 use crate::domain::point::{NORTH, SOUTH, Point, WEST, EAST};
 
 pub fn part_one(input: String) -> impl Display {
@@ -15,15 +13,24 @@ pub fn part_one(input: String) -> impl Display {
 }
 
 pub fn part_two(input: String) -> impl Display {
-    let grid = Board::parse(input);
-    let updated = grid.spin_times(1000000000);
+    let mut grid = Board::parse(input);
+    // Get a sample after a set of iterations
+    let updated = grid.spin_times(300);
+
+    for i in 0..1000000000 - 300 {
+        grid = updated.spin_cycle();
+        // println!("{}", i);
+        if grid.compare(&updated) {
+            println!("{} true", i);
+        }
+    }
     updated.print();
 
     updated.get_board_load()
 }
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum Entity {
     Sphere,
     Cube,
@@ -70,6 +77,18 @@ impl Board {
         Board { grid: map, total_size }
     }
 
+    fn compare(&self, other: &Board) -> bool {
+        for y in 0..self.total_size.y {
+            for x in 0..self.total_size.x {
+                if self.grid.get(&Point::new(x,y)).unwrap() != other.grid.get(&Point::new(x,y)).unwrap() {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     fn print(&self) {
 
         for y in (0..self.total_size.y).rev() {
@@ -79,15 +98,7 @@ impl Board {
             println!("");
         }
     }
-
-    // fn get_range(min: i32, max: i32, rev: bool) -> itertools::Either<impl Iterator<Item = i32>, impl Iterator<Item = i32>> {
-    //     if rev {
-    //         itertools::Either::left((0..9).rev())
-    //     }
-    //     else {
-    //         itertools::Either::right(0..9)
-    //     }
-    // }
+    
     fn tilt(&self, direction: Point) -> (Self, bool) {
         let mut updated_grid:HashMap<Point, Entity> = HashMap::new();
         let mut movement_detected = false;
@@ -112,19 +123,21 @@ impl Board {
                     continue;
                 }
 
-                let destination = current_point + direction;
-                if !updated_grid.contains_key(&destination) {
-                    updated_grid.insert(current_point, *current_entity);
-                } else {
-                    let dest_entity = updated_grid.get(&destination).unwrap();
-                    if matches!(dest_entity, Entity::Empty) {
+                let mut destination = current_point + direction;
+                updated_grid.insert(current_point, Entity::Empty);
+                if updated_grid.contains_key(&destination) && matches!(updated_grid.get(&destination).unwrap(), Entity::Empty) {
+                    while updated_grid.contains_key(&destination) && matches!(updated_grid.get(&destination).unwrap(), Entity::Empty) {
                         updated_grid.remove(&destination);
                         updated_grid.insert(destination, *current_entity);
-                        updated_grid.insert(current_point, Entity::Empty);
+                        updated_grid.insert(destination - direction, Entity::Empty);
+
                         movement_detected = true;
-                    } else {
-                        updated_grid.insert(current_point, *current_entity);
+
+                        destination = destination + direction;
                     }
+                }
+                else {
+                    updated_grid.insert(current_point, *current_entity);
                 }
 
                 x_index += x_direction;
@@ -142,14 +155,8 @@ impl Board {
     fn tilt_until_stopped(&self, direction: Point) -> Self {
 
         let (mut tilting_board, _) = self.tilt(direction);
-        loop {
-            let (mut updated_board, movement_detected) = tilting_board.tilt(direction);
 
-            if !movement_detected {
-                return updated_board;
-            }
-            tilting_board = updated_board;
-        }
+        tilting_board
     }
 
     fn get_board_load(&self) -> i32 {
@@ -248,5 +255,24 @@ O.#..O.#.#
 
         spun.print();
         assert_eq!(spun.get_board_load(), 10);
+    }
+
+    #[test]
+    fn boards_can_be_equal() {
+        let input = r#"O....#....
+O.OO#....#
+.....##...
+OO.#O....O
+.O.....O#.
+O.#..O.#.#
+..O..#O..O
+.......O..
+#....###..
+#OO..#...."#;
+
+        let board = Board::parse(input.to_string()).spin_times(3);
+
+        let second_board = Board::parse(input.to_string()).spin_times(3);
+        assert_eq!(board.compare(&second_board), true);
     }
 }
