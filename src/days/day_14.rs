@@ -188,7 +188,7 @@ O.#..O.#.#
 #OO..#...."#;
 
         let board = Board::parse(input.to_string());
-        let tilted = board.tilt_until_stopped(NORTH);
+        let tilted = board.tilt(NORTH);
 
         assert_eq!(tilted.get_board_load(), 136);
     }
