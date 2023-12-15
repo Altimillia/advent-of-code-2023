@@ -10,13 +10,11 @@ pub fn part_one(input: String) -> impl Display {
 }
 
 pub fn part_two(input: String) -> impl Display {
-    holiday_ascii_string_helper_manual_arrangement_procedure(input);
-    0
+    holiday_ascii_string_helper_manual_arrangement_procedure(input)
 }
 
 fn holiday_ascii_string_helper_manual_arrangement_procedure(input: String) -> u32 {
-    let mut indexmap:IndexMap<String, i32> = IndexMap::new();
-    let mut box_map:BTreeMap<u32, BTreeMap<String, i32>> = BTreeMap::new();
+    let mut box_map:BTreeMap<u32, IndexMap<String, i32>> = BTreeMap::new();
     input.replace("\n", "").split(",").for_each(|line| process_instruction_line(line, &mut box_map));
 
     let mut running_total = 0;
@@ -34,7 +32,7 @@ fn holiday_ascii_string_helper_manual_arrangement_procedure(input: String) -> u3
     running_total
 }
 
-fn process_instruction_line(instruction_line: &str, box_map: &mut BTreeMap<u32, BTreeMap<String, i32>>) {
+fn process_instruction_line(instruction_line: &str, box_map: &mut BTreeMap<u32, IndexMap<String, i32>>) {
     if instruction_line.contains("=") {
         // Add Operation
         let mut split = instruction_line.split("=");
@@ -46,7 +44,7 @@ fn process_instruction_line(instruction_line: &str, box_map: &mut BTreeMap<u32, 
             lens_box.insert(label.clone(), focal_len);
         }
         else {
-            let mut focal_box:BTreeMap<String, i32> = BTreeMap::new();
+            let mut focal_box:IndexMap<String, i32> = IndexMap::new();
             focal_box.insert(label.clone(), focal_len);
             box_map.insert(box_number, focal_box);
         }
@@ -57,7 +55,7 @@ fn process_instruction_line(instruction_line: &str, box_map: &mut BTreeMap<u32, 
         let box_number = trust_the_process(label);
 
         if let Some(lens_box) = box_map.get_mut(&box_number) {
-            lens_box.remove(label);
+            lens_box.shift_remove(label);
         }
     }
 }
