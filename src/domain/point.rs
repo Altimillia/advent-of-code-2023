@@ -1,6 +1,6 @@
 use std::cmp::{min, Ordering};
 use std::fmt;
-use std::ops::{Add, Sub};
+use std::ops::{Add, Mul, Sub};
 use itertools::max;
 use num::integer::Roots;
 use crate::tools::usize_to_i32;
@@ -48,6 +48,10 @@ impl Point {
 
     pub fn manhattan_distance(&self, other:Point) -> i32 {
         (self.x - other.x).abs() + (self.y - other.y).abs()
+    }
+
+    pub fn scale(&self, value: i32) -> Self {
+        Point::new(self.x * value, self.y * value)
     }
 }
 

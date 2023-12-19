@@ -15,7 +15,8 @@ pub fn part_two(input: String) -> impl Display {
 }
 
 fn part_one_finder(input: String) -> u32 {
-    using_module(&input, 1, 3)
+    let mut grid = &mut Grid::parse(input);
+    path_find(Point::new(0, grid.total_size.y - 1), Point::new(grid.total_size.x - 1, 0), &mut grid) as u32
 }
 
 fn using_module(input: &str, min_move: usize, max_move: usize) -> u32 {
@@ -148,17 +149,17 @@ fn breadth_first(start_point: Point, end_point: Point, grid: &mut Grid) -> i32 {
 
 
 fn path_find(start_point: Point, end_point: Point, grid: &mut Grid) -> i32 {
-    let mut frontier:PriorityQueue<Point, i32> = PriorityQueue::new();
+    let mut frontier:PriorityQueue<(Point, Point), i32> = PriorityQueue::new();
     let mut closed:Vec<Point> = Vec::new();
     grid.map.get_mut(&start_point).unwrap().cost = 0;
     let start = grid.get_node(start_point);
-    frontier.push(start.position, 0);
+    frontier.push((start.position, Point::new(0,0)), 0);
 
     while frontier.len() > 0 {
 
         let popped = frontier.pop().unwrap();
-
-        let current_pos = popped.0;
+        println!("{}", -popped.1);
+        let current_pos = popped.0.0;
         let current_copy;
         {
             let current = &mut grid.get_node(current_pos);
@@ -166,64 +167,74 @@ fn path_find(start_point: Point, end_point: Point, grid: &mut Grid) -> i32 {
         }
 
         if current_pos == end_point {
-            println!("DID I FIND IT {}", popped.1);
+            println!("DID I FIND IT {}", -popped.1);
         }
         closed.push(current_copy.position);
 
 
-        let mut neighbors = grid.get_neighbors(current_copy.position);
+        //
+        // let mut neighbors = grid.get_neighbors(current_copy.position);
         // check previous to see if valid direction
         // If the previous two in the path are the same direction, then remvoe the neighbor thats in that direction.
-        if current_copy.prev.is_some() {
-            let mut direction_marker = &current_copy.clone();
-            let mut counter = 0;
-            let direction = current_copy.position - current_copy.prev.unwrap();
-            while direction_marker.prev.is_some() && counter <= 4 {
-                if direction != direction_marker.position - direction_marker.prev.unwrap() {
-                    break;
+        // if current_copy.prev.is_some() {
+        //     let mut direction_marker = &current_copy.clone();
+        //     let mut counter = 0;
+        //     let direction = current_copy.position - current_copy.prev.unwrap();
+        //     while direction_marker.prev.is_some() && counter <= 4 {
+        //         if direction != direction_marker.position - direction_marker.prev.unwrap() {
+        //             break;
+        //         }
+        //         direction_marker = grid.get_node(direction_marker.prev.unwrap());
+        //         counter += 1;
+        //     }
+        //
+        //     if counter > 2 {
+        //         println!("{} Culled", current_copy.position + direction);
+        //         neighbors.retain(|&f| f != current_copy.position + direction);
+        //     }
+        // }
+
+
+
+        let directions = [SOUTH, NORTH, EAST, WEST];
+
+        for direction in directions {
+            if popped.0.1 == direction {
+                continue;
+            }
+            let mut current_cost = -popped.1;
+            for i in 1..=3 {
+                let next_node = Point::new(direction.x * i, direction.y * i) + current_pos;
+                if next_node.x >= grid.total_size.x || next_node.x < 0 || next_node.y >= grid.total_size.y || next_node.y < 0 {
+                    continue;
                 }
-                direction_marker = grid.get_node(direction_marker.prev.unwrap());
-                counter += 1;
-            }
 
-            if counter > 2 {
-                println!("{} Culled", current_copy.position + direction);
-                neighbors.retain(|&f| f != current_copy.position + direction);
-            }
-        }
+                let neighbor_copy;
+                {
+                    let neighbor = &mut grid.get_node(next_node);
+                    neighbor_copy = neighbor.clone();
+                }
 
+                current_cost += neighbor_copy.heat_loss;
 
-        let neighbors_count = neighbors.len();
-        for x in 0..neighbors_count {
+                // if frontier.get(&neighbor_copy.position).is_some() && current_cost < neighbor_copy.cost {
+                //     //println!("{}", neighbor_copy.position);
+                //     frontier.remove(&neighbor_copy.position);
+                // }
 
-            let neighbor_copy;
-            {
-                let neighbor = &mut grid.get_node(neighbors[x]);
-                neighbor_copy = neighbor.clone();
-            }
+                if closed.contains(&neighbor_copy.position) && current_cost < neighbor_copy.cost {
+                    //println!("Closed contains {}", neighbor_copy.position);
+                    closed.retain(|&x| x != neighbor_copy.position);
+                }
 
+                if current_cost < neighbor_copy.cost {
+                    grid.update_node(current_cost, current_pos + Point::new(direction.x * (i-1), direction.y * (i-1)), neighbor_copy.position);
+                    grid.map.get_mut(&neighbor_copy.position).unwrap().cost = current_cost;
 
-            let cost = current_copy.cost + neighbor_copy.heat_loss;
-
-            if frontier.get(&neighbor_copy.position).is_some() && cost < neighbor_copy.cost {
-
-                println!("{}", neighbor_copy.position);
-                frontier.remove(&neighbor_copy.position);
-            }
-
-            if closed.contains(&neighbor_copy.position) && cost < neighbor_copy.cost {
-                println!("Closed contains {}", neighbor_copy.position);
-                closed.retain(|&x| x != neighbor_copy.position);
-            }
-
-            if !frontier.get(&neighbor_copy.position).is_some() && !closed.contains(&neighbor_copy.position) {
-
-                grid.update_node(cost, current_copy.position, neighbor_copy.position);
-                grid.map.get_mut(&neighbor_copy.position).unwrap().cost = cost;
-
-                let priority = cost + heuristic(neighbor_copy.position, end_point);
-                println!("Adding to Frontier {} {}", neighbor_copy.position, priority);
-                frontier.push(neighbor_copy.position, -priority);
+                    let priority = current_cost;
+                    //println!("Adding to Frontier {} {}", neighbor_copy.position, priority);
+                    frontier.push((neighbor_copy.position, direction), -priority);
+                }
             }
         }
 
@@ -245,7 +256,7 @@ fn path_find(start_point: Point, end_point: Point, grid: &mut Grid) -> i32 {
 
     grid.print_grid(&positions);
 
-    return counter;
+    return 0;
 }
 
 fn heuristic(a:Point, b:Point) -> i32 {
