@@ -67,6 +67,7 @@ fn print_specific_day(day: i32) {
         14 => print_style_result!(day_14, load_file("day14_input.txt"), "Day 14"),
         15 => print_style_result!(day_15, load_file("day15_input.txt"), "Day 15"),
         16 => print_style_result!(day_16, load_file("day16_input.txt"), "Day 16"),
+        17 => print_style_result!(day_17, load_file("day17_input.txt"), "Day 17"),
         _ => {}
     }
 }
