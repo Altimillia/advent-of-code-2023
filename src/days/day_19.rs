@@ -40,6 +40,38 @@ fn factory_line(input: String) -> i32 {
     accepted.iter().map(|part| part.sum()).sum::<i32>()
 }
 
+fn factory_line_2(input: String) -> i32 {
+    let mut accepted:Vec<Part> = vec![];
+    let mut rejected:Vec<Part> = vec![];
+    let mut part_queue:VecDeque<TheoreticalPart> 
+    let (workflows, parts) = parse_information(input);
+
+    for part in parts {
+        let mut active_workflow = workflows.get("in").unwrap();
+
+        loop {
+            let destination = active_workflow.get_part_destination(&part);
+
+            match destination.as_str() {
+                "A" => {
+                    accepted.push(part);
+                    break;
+                }
+                "R" => {
+                    rejected.push(part);
+                    break;
+                }
+                _ => {
+                    active_workflow = workflows.get(destination.as_str()).unwrap();
+                }
+            }
+        }
+    }
+
+
+    accepted.iter().map(|part| part.sum()).sum::<i32>()
+}
+
 fn parse_information(input: String) -> (HashMap<String, Workflow>, Vec<Part>) {
     let mut split = input.split_terminator("\n\n");
     let workflow_lines = split.nth(0).unwrap().lines();
