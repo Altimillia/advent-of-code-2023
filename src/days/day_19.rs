@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fmt::Display;
-use nom::bytes::complete::{tag, take, take_till, take_until, take_while_m_n};
+use std::ops::Range;
+use nom::bytes::complete::{tag, take, take_till, take_until};
 use nom::IResult;
 use crate::tools::parse_numbers;
 
@@ -83,6 +84,74 @@ impl Workflow {
         }
         panic!("Shouldn't happen")
     }
+
+    fn process_theoretical_part(&self, part: &TheoreticalPart) -> Vec<(TheoreticalPart, String)> {
+        let mut part_queue:VecDeque<TheoreticalPart> = VecDeque::new();
+        part_queue.push_back(part.clone());
+        let mut results:Vec<(TheoreticalPart, String)> = Vec::new();
+
+        while part_queue.len() > 0 {
+            let mut next_part = part_queue.pop_front().unwrap();
+            for rule in &self.rules {
+                if rule.can_apply_in_theory(&next_part) {
+                    if rule.requirement.is_some() {
+                        let updated =  next_part.split_part(rule.requirement.unwrap());
+                        results.push((updated[0].clone(), rule.destination.to_string()));
+                        if updated.len() > 1 {
+                            part_queue.push_back(updated[1].clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        results
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct TheoreticalPart {
+    values: HashMap<char, Range<i32>>
+}
+impl TheoreticalPart {
+    fn blank() -> Self {
+        let mut values:HashMap<char, Range<i32>> = HashMap::new();
+
+        values.insert('x', Range { start: 0, end: 4000});
+        values.insert('m', Range { start: 0, end: 4000});
+        values.insert('a', Range { start: 0, end: 4000});
+        values.insert('s', Range { start: 0, end: 4000});
+
+        TheoreticalPart { values }
+    }
+    fn split_part(&self, operation: Operation) -> Vec<TheoreticalPart> {
+        if let Some(val) = self.values.get(&operation.part_id) {
+
+            if operation.part_req < val.start && operation.part_req > val.end {
+                return vec![self.clone()]
+            }
+
+            let (r1,r2) = match operation.operator {
+                '<' => (Range { start: val.start, end: operation.part_req - 1 }, Range { start: operation.part_req + 1, end: val.end }),
+                '>' => (Range { start: operation.part_req + 1, end: val.end }, Range { start: val.start, end: operation.part_req - 1 }),
+                _ => panic!("operator not known")
+            };
+            let mut set_1 = self.values.clone();
+            set_1.insert(operation.part_id, r1);
+            let mut set_2 = self.values.clone();
+            set_2.insert(operation.part_id, r2);
+            return vec![TheoreticalPart { values: set_1 }, TheoreticalPart { values: set_2 }]
+        }
+
+        panic!("Help");
+    }
+
+    fn print(&self) {
+        println!("x {}-{} m {}-{} a {}-{} s {}-{}", self.values.get(&'x').unwrap().start, self.values.get(&'x').unwrap().end,
+                 self.values.get(&'m').unwrap().start, self.values.get(&'m').unwrap().end,
+                 self.values.get(&'a').unwrap().start, self.values.get(&'a').unwrap().end,
+                 self.values.get(&'s').unwrap().start, self.values.get(&'s').unwrap().end);
+    }
 }
 
 struct Part {
@@ -135,6 +204,14 @@ impl WorkflowRule {
         self.requirement.as_ref().unwrap().evaluate(part)
     }
 
+    fn can_apply_in_theory(&self, part: &TheoreticalPart) -> bool {
+        if self.requirement.is_none() {
+            return true;
+        }
+
+        self.requirement.as_ref().unwrap().evaluate_in_theory(part)
+    }
+
 }
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 struct Operation {
@@ -155,12 +232,26 @@ impl Operation {
 
         panic!("Unknown part type")
     }
+
+    fn evaluate_in_theory(&self, part: &TheoreticalPart) -> bool {
+        if let Some(val) = part.values.get(&self.part_id) {
+
+            return match self.operator {
+                '<' => val.start < self.part_req,
+                '>' => val.end > self.part_req,
+                _ => panic!("operator not known")
+            }
+        }
+
+        panic!("Unknown part type")
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
     use itertools::assert_equal;
-    use crate::days::day_19::{factory_line, parse_information, Part, Workflow};
+    use crate::days::day_19::{factory_line, Operation, parse_information, Part, TheoreticalPart, Workflow};
 
     #[test]
     fn can_parse_workflow() -> Result<(), String> {
@@ -250,4 +341,31 @@ hdj{m>838:A,pv}
 
         assert_eq!(result, 19114);
     }
+
+    #[test]
+    fn theoryitical_part_can_be_split() {
+        let operation = Operation { part_id: 'x', part_req: 2000, operator: '<'};
+        let start_part = TheoreticalPart::blank();
+
+        let split = start_part.split_part(operation);
+
+        assert_eq!(split.len(), 2);
+        assert_eq!(split[0].values.get(&'x').unwrap().end, 1999);
+        assert_eq!(split[1].values.get(&'x').unwrap().start, 2001);
+    }
+
+    #[test]
+    fn can_get_workflow_destination_for_theoritical_parts() {
+        let workflow = Workflow::parse(r#"px{a<2006:qkq,m>2090:A,rfg}"#).unwrap().1;
+        let part = TheoreticalPart::blank();
+
+        let results = workflow.process_theoretical_part(&part);
+
+        for result in &results {
+            result.0.print();
+        }
+
+        assert_eq!(results.len(), 3);
+    }
+
 }
