@@ -40,36 +40,47 @@ fn factory_line(input: String) -> i32 {
     accepted.iter().map(|part| part.sum()).sum::<i32>()
 }
 
-fn factory_line_2(input: String) -> i32 {
-    let mut accepted:Vec<Part> = vec![];
-    let mut rejected:Vec<Part> = vec![];
-    let mut part_queue:VecDeque<TheoreticalPart> 
-    let (workflows, parts) = parse_information(input);
+fn factory_line_2(input: String) -> u128 {
+    let mut accepted:Vec<TheoreticalPart> = vec![];
+    let mut rejected:Vec<TheoreticalPart> = vec![];
+    let mut part_queue:VecDeque<(TheoreticalPart, String)> = VecDeque::new();
 
-    for part in parts {
-        let mut active_workflow = workflows.get("in").unwrap();
+    part_queue.push_back((TheoreticalPart::blank(), "in".to_string()));
 
-        loop {
-            let destination = active_workflow.get_part_destination(&part);
+    let (workflows, _) = parse_information(input);
 
-            match destination.as_str() {
-                "A" => {
-                    accepted.push(part);
-                    break;
-                }
-                "R" => {
-                    rejected.push(part);
-                    break;
-                }
-                _ => {
-                    active_workflow = workflows.get(destination.as_str()).unwrap();
-                }
-            }
+    while part_queue.len() > 0 {
+        let (next_part, dest) = part_queue.pop_front().unwrap();
+
+        if dest == "A" {
+            accepted.push(next_part);
+            continue;
         }
+        if dest == "R" {
+            rejected.push(next_part);
+            continue;
+        }
+
+        let workflow = workflows.get(dest.as_str()).unwrap();
+        let results = workflow.process_theoretical_part(&next_part);
+
+        println!("{}", results.len());
+        for result in results {
+            part_queue.push_back(result);
+        }
+
     }
 
+    println!("{}", accepted.len());
+    let mut max_value:u128 = 0;
 
-    accepted.iter().map(|part| part.sum()).sum::<i32>()
+    for part in &accepted {
+        part.print();
+        max_value += part.get_combos();
+        //println!("{}", part.get_combos());
+    }
+
+    max_value
 }
 
 fn parse_information(input: String) -> (HashMap<String, Workflow>, Vec<Part>) {
@@ -89,7 +100,7 @@ fn parse_information(input: String) -> (HashMap<String, Workflow>, Vec<Part>) {
 }
 
 pub fn part_two(input: String) -> impl Display {
-    0
+    factory_line_2(input)
 }
 
 struct Workflow {
@@ -118,24 +129,26 @@ impl Workflow {
     }
 
     fn process_theoretical_part(&self, part: &TheoreticalPart) -> Vec<(TheoreticalPart, String)> {
-        let mut part_queue:VecDeque<TheoreticalPart> = VecDeque::new();
-        part_queue.push_back(part.clone());
         let mut results:Vec<(TheoreticalPart, String)> = Vec::new();
 
-        while part_queue.len() > 0 {
-            let mut next_part = part_queue.pop_front().unwrap();
+            let mut next_part = part.clone();
             for rule in &self.rules {
                 if rule.can_apply_in_theory(&next_part) {
                     if rule.requirement.is_some() {
                         let updated =  next_part.split_part(rule.requirement.unwrap());
+                        println!("{} {} {}", rule.requirement.unwrap().part_id, rule.requirement.unwrap().operator, rule.requirement.unwrap().part_req);
+                        updated[0].print();
                         results.push((updated[0].clone(), rule.destination.to_string()));
                         if updated.len() > 1 {
-                            part_queue.push_back(updated[1].clone());
+                            updated[1].print();
+                            next_part = updated[1].clone();
                         }
+                    }
+                    else {
+                        results.push((next_part.clone(), rule.destination.to_string()));
                     }
                 }
             }
-        }
 
         results
     }
@@ -149,23 +162,24 @@ impl TheoreticalPart {
     fn blank() -> Self {
         let mut values:HashMap<char, Range<i32>> = HashMap::new();
 
-        values.insert('x', Range { start: 0, end: 4000});
-        values.insert('m', Range { start: 0, end: 4000});
-        values.insert('a', Range { start: 0, end: 4000});
-        values.insert('s', Range { start: 0, end: 4000});
+        values.insert('x', Range { start: 1, end: 4000});
+        values.insert('m', Range { start: 1, end: 4000});
+        values.insert('a', Range { start: 1, end: 4000});
+        values.insert('s', Range { start: 1, end: 4000});
 
         TheoreticalPart { values }
     }
+
     fn split_part(&self, operation: Operation) -> Vec<TheoreticalPart> {
         if let Some(val) = self.values.get(&operation.part_id) {
 
-            if operation.part_req < val.start && operation.part_req > val.end {
+            if !val.contains(&operation.part_req) {
                 return vec![self.clone()]
             }
 
             let (r1,r2) = match operation.operator {
-                '<' => (Range { start: val.start, end: operation.part_req - 1 }, Range { start: operation.part_req + 1, end: val.end }),
-                '>' => (Range { start: operation.part_req + 1, end: val.end }, Range { start: val.start, end: operation.part_req - 1 }),
+                '<' => (Range { start: val.start, end: operation.part_req - 1 }, Range { start: operation.part_req, end: val.end }),
+                '>' => (Range { start: operation.part_req + 1, end: val.end }, Range { start: val.start, end: operation.part_req }),
                 _ => panic!("operator not known")
             };
             let mut set_1 = self.values.clone();
@@ -177,6 +191,34 @@ impl TheoreticalPart {
 
         panic!("Help");
     }
+
+    fn overlap(&self, other: &TheoreticalPart) -> bool {
+        let keys = vec!['x','m', 'a', 's'];
+
+        for key in keys {
+            let r1 = self.values.get(&key).unwrap();
+            let r2 = other.values.get(&key).unwrap();
+
+            if !r1.contains(&r2.start) || r1.contains(&r2.end) {
+                return false;
+            }
+        }
+
+        return true
+    }
+
+    fn sum(&self) -> i32 {
+        self.values.iter().map(|f| (f.1.end - f.1.start).abs()).sum::<i32>()
+    }
+
+     fn get_combos(&self) -> u128 {
+         let mut combination:u128 = 1;
+         for (id, range) in &self.values {
+             combination *= (range.end - range.start + 1).abs() as u128;
+         }
+
+         combination
+     }
 
     fn print(&self) {
         println!("x {}-{} m {}-{} a {}-{} s {}-{}", self.values.get(&'x').unwrap().start, self.values.get(&'x').unwrap().end,
@@ -283,7 +325,7 @@ impl Operation {
 #[cfg(test)]
 mod tests {
     use itertools::assert_equal;
-    use crate::days::day_19::{factory_line, Operation, parse_information, Part, TheoreticalPart, Workflow};
+    use crate::days::day_19::{factory_line, factory_line_2, Operation, parse_information, Part, TheoreticalPart, Workflow};
 
     #[test]
     fn can_parse_workflow() -> Result<(), String> {
@@ -383,7 +425,7 @@ hdj{m>838:A,pv}
 
         assert_eq!(split.len(), 2);
         assert_eq!(split[0].values.get(&'x').unwrap().end, 1999);
-        assert_eq!(split[1].values.get(&'x').unwrap().start, 2001);
+        assert_eq!(split[1].values.get(&'x').unwrap().start, 2000);
     }
 
     #[test]
@@ -399,5 +441,46 @@ hdj{m>838:A,pv}
 
         assert_eq!(results.len(), 3);
     }
+
+    #[test]
+    fn can_get_only_split_destination_for_theoritical_parts() {
+        let workflow = Workflow::parse(r#"in{s<1351:px,qqz}"#).unwrap().1;
+        let part = TheoreticalPart::blank();
+
+        let results = workflow.process_theoretical_part(&part);
+
+        for result in &results {
+            result.0.print();
+        }
+
+        assert_eq!(results.len(), 2);
+    }
+
+
+    #[test]
+    fn factory_line_2_runs_well() {
+        let input = r#"px{a<2006:qkq,m>2090:A,rfg}
+pv{a>1716:R,A}
+lnx{m>1548:A,A}
+rfg{s<537:gd,x>2440:R,A}
+qs{s>3448:A,lnx}
+qkq{x<1416:A,crn}
+crn{x>2662:A,R}
+in{s<1351:px,qqz}
+qqz{s>2770:qs,m<1801:hdj,R}
+gd{a>3333:R,R}
+hdj{m>838:A,pv}
+
+{x=787,m=2655,a=1222,s=2876}
+{x=1679,m=44,a=2067,s=496}
+{x=2036,m=264,a=79,s=2244}
+{x=2461,m=1339,a=466,s=291}
+{x=2127,m=1623,a=2188,s=1013}"#;
+
+        let result = factory_line_2(input.to_string());
+
+        assert_eq!(result, 167409079868000);
+    }
+
 
 }
