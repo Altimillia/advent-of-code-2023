@@ -1,26 +1,51 @@
 use std::collections::HashMap;
 use std::fmt::Display;
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use crate::domain::point::{EAST, NORTH, Point, SOUTH, WEST};
 use crate::tools::parse_numbers;
 use std::collections::VecDeque;
 
 pub fn part_one(input: String) -> impl Display {
-    dig_it_up(input, true, true)
+    let instructions:Vec<Instruction> = input.lines().map(|l| Instruction::parse(l)).collect();
+    laced(instructions)
 }
 
 pub fn part_two(input: String) -> impl Display {
-    0
+    let instructions:Vec<Instruction> = input.lines().map(|l| Instruction::parse_advanced_instruction(l)).collect();
+    laced(instructions)
 }
 
+fn laced(instructions:Vec<Instruction>) -> usize {
+    let mut current:(isize, isize) = (0,0);
+    let mut prev:(isize, isize) = (0,0);
+
+    let mut count: usize = 0;
+    let mut s: isize = 0;
+
+    for instruction in instructions {
+        match instruction.direction {
+            NORTH  => current.0 -= instruction.amount as isize,
+            SOUTH => current.0 += instruction.amount as isize,
+            EAST => current.1 += instruction.amount as isize,
+            WEST => current.1 -= instruction.amount as isize,
+            _ => panic!("Help")
+        }
+
+        s += current.0 * prev.1 - current.1 * prev.0;
+        count += instruction.amount as usize;
+        prev = current;
+    }
+    (s.abs() as usize / 2 + count / 2 + 1)
+}
 
 fn dig_it_up(input: String, run_fill: bool, print_grid: bool) -> usize {
     let instructions:Vec<Instruction> = input.lines().map(|l| Instruction::parse(l)).collect();
-    let mut dig_map = DigMap { map: HashMap::new(), current_position: Point::new(0,0), vertices: vec![]};
+    let mut dig_map = DigMap { map: HashMap::new(), current_position: Point::new(0,0), vertices: vec![], edges: vec![]};
     instructions.iter().for_each(|inst| dig_map.process(inst));
 
+    dig_map.create_edges();
     if run_fill {
-        dig_map.flood_fill_efficient();
+        println!("{}",dig_map.get_area());
     }
 
     if print_grid {
@@ -33,8 +58,10 @@ fn dig_it_up(input: String, run_fill: bool, print_grid: bool) -> usize {
 
 fn dig_it_up_advanced(input: String, run_fill: bool, print_grid: bool) -> usize {
     let instructions:Vec<Instruction> = input.lines().map(|l| Instruction::parse_advanced_instruction(l)).collect();
-    let mut dig_map = DigMap { map: HashMap::new(), current_position: Point::new(0,0), vertices: vec![ Point::new(0,0)]};
-    instructions.iter().for_each(|inst| dig_map.process_advanced(inst));
+    let mut dig_map = DigMap { map: HashMap::new(), current_position: Point::new(0,0), vertices: vec![], edges: vec![]};
+    instructions.iter().for_each(|inst| dig_map.process(inst));
+
+    dig_map.create_edges();
     if run_fill {
         dig_map.fill();
     }
@@ -43,15 +70,16 @@ fn dig_it_up_advanced(input: String, run_fill: bool, print_grid: bool) -> usize 
         println!("{}", vertex);
     }
 
-
-    0
+    dig_map.map.len()
 }
 
 struct DigMap {
     map: HashMap<Point, String>,
     current_position: Point,
-    vertices: Vec<Point>
+    vertices: Vec<Point>,
+    edges: Vec<Edge>
 }
+
 impl DigMap {
     fn process(&mut self, instruction: &Instruction) {
         for i in 1..=instruction.amount {
@@ -65,9 +93,9 @@ impl DigMap {
         self.vertices.push(*self.vertices.last().unwrap() + instruction.direction.scale(instruction.amount));
     }
 
-    fn calculate_area(&mut self) {
-        let mut queue:VecDeque<(i32, i32, i32, i32)> = VecDeque::new();
-
+    fn create_edges(&mut self) {
+        self.edges = self.vertices.windows(2).map(|p| Edge { start: p[0], end: p[1] }).collect();
+        self.edges.push(Edge { end: self.vertices[0], start: self.vertices[self.vertices.len() - 1]});
     }
 
     fn flood_fill_efficient(&mut self) {
@@ -111,9 +139,55 @@ impl DigMap {
 
     }
 
+    fn get_area(&self) -> u64 {
+        let min_x = self.vertices.iter().min_by_key(|p| p.x).unwrap().x;
+        let max_x = self.vertices.iter().max_by_key(|p| p.x).unwrap().x;
+        let min_y = self.vertices.iter().min_by_key(|p| p.y).unwrap().y;
+        let max_y = self.vertices.iter().max_by_key(|p| p.y).unwrap().y;
+
+        let mut total_spans:Vec<Edge> = Vec::new();
+
+        for y in min_y..=max_y {
+            let edge = Edge {start: Point::new(min_x, y), end: Point::new(max_x, y)};
+
+            total_spans.extend(self.get_spans(edge));
+        }
+
+        for total_span in &total_spans {
+            println!("{} --- {}", total_span.start, total_span.end);
+        }
+        let sum = total_spans.iter().map(|span| span.get_tiles()).sum::<u64>();
+        println!("{}", sum);
+        sum
+    }
+
+    fn get_spans(&self, ray_trace: Edge) -> Vec<Edge> {
+
+        let mut collided:Vec<Edge> = Vec::new();
+        for edge in &self.edges {
+            if edge.intersect(ray_trace) {
+                collided.push(edge.clone());
+            }
+        }
+
+        collided.sort_by(|a,b| a.start.x.cmp(&b.start.x));
+
+        if collided.len() == 1 {
+            return collided;
+        }
+        if collided.len() % 2 == 0 {
+            return collided.into_iter().tuples().map(|(prev,next)| Edge { start: Point::new(prev.start.x, ray_trace.start.y), end: Point::new(next.end.x, ray_trace.end.y)}).collect()
+        }
+        println!("{}", collided.len() % 2 == 0);
+
+        collided
+    }
+
+
+
     fn fill(&mut self) {
         let mut queue = VecDeque::new();
-        println!("{}", self.current_position);
+
         queue.push_back(self.current_position.clone());
         queue.push_back(self.current_position.clone() + NORTH);
         queue.push_back(self.current_position.clone() + SOUTH);
@@ -126,7 +200,7 @@ impl DigMap {
 
         while let Some(next) = queue.pop_front() {
 
-            if !&self.inside(next) {
+            if !&self.inside_2(next) {
                 // println!("Inside {}", next);
                 continue;
             }
@@ -142,11 +216,21 @@ impl DigMap {
         }
     }
 
+    fn inside_2(&self, position: Point) -> bool {
+        let mut count = 0;
+        for edge in &self.edges {
+            if position.y < edge.start.y ||  position.y < edge.end.y && edge.start.x + (position.y - edge.start.y) / (edge.end.y - edge.start.y) * (edge.end.x - edge.start.x) < position.x {
+                count += 1;
+            }
+        }
+
+        return count % 2 == 1
+    }
+
     fn inside(&self, position: Point) -> bool {
         let mut is_inside = false;
 
         if self.map.contains_key(&position) {
-            println!("found {}", position);
             return true;
         }
 
@@ -166,7 +250,7 @@ impl DigMap {
             j = i;
         }
 
-        println!("{} {}", position, is_inside);
+
 
         return is_inside
     }
@@ -188,6 +272,32 @@ impl DigMap {
             }
             println!("");
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
+struct Edge {
+    start: Point,
+    end: Point
+}
+
+impl Edge {
+    fn intersect(self, other:Edge) -> bool {
+        if self.start.x > other.end.x || self.end.x < other.start.x {
+            // No overlap on x-axis
+            return false;
+        }
+
+        if self.start.y > other.end.y || self.end.y < other.start.y {
+            // No overlap on y-axis
+            return false;
+        }
+
+        true
+    }
+
+    fn get_tiles(&self) -> u64 {
+        ((self.end.x - self.start.x).abs() + (self.end.y - self.start.y)) as u64
     }
 }
 
@@ -238,8 +348,8 @@ impl Instruction {
 
 #[cfg(test)]
 mod tests {
-    use crate::days::day_18::{dig_it_up, dig_it_up_advanced, Instruction};
-    use crate::domain::point::SOUTH;
+    use crate::days::day_18::{dig_it_up, dig_it_up_advanced, Edge, Instruction};
+    use crate::domain::point::{Point, SOUTH};
 
     #[test]
     fn can_dig_outline_tiles() {
@@ -312,8 +422,28 @@ U 3 (#a77fa3)
 L 2 (#015232)
 U 2 (#7a21e3)"#;
 
-        let result = dig_it_up_advanced(input.to_string(), false, false);
+        let result = dig_it_up_advanced(input.to_string(), true, false);
 
         assert_eq!(result, 952408144115);
+    }
+
+    #[test]
+    fn edge_collision(){
+        let edge1 = Edge { start: Point::new(0,0), end: Point::new(10,0)};
+        let edge2 = Edge { start: Point::new(5,-5), end: Point::new(5,5)};
+
+        let result = edge1.intersect(edge2);
+
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn edge_collision_2(){
+        let edge1 = Edge { start: Point::new(0,0), end: Point::new(10,0)};
+        let edge2 = Edge { start: Point::new(15,-5), end: Point::new(15,5)};
+
+        let result = edge1.intersect(edge2);
+
+        assert_eq!(result, false);
     }
 }
