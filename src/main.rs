@@ -1,8 +1,9 @@
 #![allow(warnings)]
+
 use crate::days::*;
 use std::{env, fs};
 use std::fmt::Display;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 use clap::Parser;
 
@@ -33,7 +34,6 @@ macro_rules! print_style_result {
     }};
 }
 
-
 fn main() {
     let parse_result = RunArgument::parse();
 
@@ -50,6 +50,9 @@ fn print_all_days(){
     }
 }
 fn print_specific_day(day: i32) {
+    let input = format!("day{}_input.txt", &day);
+    let info = format!("Day {}", &day);
+
     match day {
         1 => print_style_result!(day_01, load_file("day01_input.txt"), "Day 1"),
         2 => print_style_result!(day_02, load_file("day02_input.txt"), "Day 2"),
@@ -70,7 +73,8 @@ fn print_specific_day(day: i32) {
         17 => print_style_result!(day_17, load_file("day17_input.txt"), "Day 17"),
         18 => print_style_result!(day_18, load_file("day18_input.txt"), "Day 18"),
         19 => print_style_result!(day_19, load_file("day19_input.txt"), "Day 19"),
-        20 => print_style_result!(day_20, load_file("day20_input.txt"), "Day 2"),
+        20 => print_style_result!(day_20, load_file("day20_input.txt"), "Day 20"),
+        21 => print_style_result!(day_21, load_file(&input), info),
         _ => {}
     }
 }
