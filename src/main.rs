@@ -1,4 +1,7 @@
+#![feature(iter_array_chunks)]
+#![feature(iter_next_chunk)]
 #![allow(warnings)]
+
 
 use crate::days::*;
 use std::{env, fs};
@@ -75,6 +78,7 @@ fn print_specific_day(day: i32) {
         19 => print_style_result!(day_19, load_file("day19_input.txt"), "Day 19"),
         20 => print_style_result!(day_20, load_file("day20_input.txt"), "Day 20"),
         21 => print_style_result!(day_21, load_file(&input), info),
+        22 => print_style_result!(day_22, load_file(&input), info),
         _ => {}
     }
 }
